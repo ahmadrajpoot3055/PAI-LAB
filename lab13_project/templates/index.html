@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Note Summarizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --primary: #8b5cf6;
+            --secondary: #3b82f6;
+            --card-bg: rgba(30, 41, 59, 0.7);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.15), transparent 25%);
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 90%;
+            margin: 4rem auto;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -1px;
+        }
+
+        p.subtitle {
+            color: #94a3b8;
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            color: #fff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        button {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 1rem;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px rgba(139, 92, 246, 0.6);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        #result {
+            margin-top: 2rem;
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .story-content {
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 4px solid var(--primary);
+            padding: 1.5rem;
+            border-radius: 0 12px 12px 0;
+            line-height: 1.8;
+            font-size: 1.05rem;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .row { grid-template-columns: 1fr; gap: 1rem; }
+            h1 { font-size: 2.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Note Summarizer</h1>
+            <p class="subtitle">Transform your lengthy notes into concise, clear, and meaningful key points.</p>
+        </div>
+
+        <div class="glass-card">
+            <form id="summarize-form">
+                <div class="form-group">
+                    <label for="notes">Paste your lengthy notes here:</label>
+                    <textarea id="notes" placeholder="Paste your meeting notes, lecture notes, or article content here to get a concise summary..." required></textarea>
+                </div>
+                
+                <div class="row">
+                    <div class="form-group">
+                        <label for="length">Summary Length</label>
+                        <select id="length">
+                            <option value="Short">Short</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Detailed">Detailed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="format">Output Format</label>
+                        <select id="format">
+                            <option value="Bullet Points">Bullet Points</option>
+                            <option value="Numbered List">Numbered List</option>
+                            <option value="Paragraph">Paragraph</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit">Summarize Notes ✨</button>
+            </form>
+
+            <div class="loader" id="loader">
+                <div class="spinner"></div>
+                <p style="margin-top: 1rem; color: #94a3b8;">Analyzing and summarizing your notes...</p>
+            </div>
+
+            <div id="result">
+                <h3 style="margin-bottom: 1rem; color: var(--primary);">Your Summarized Notes:</h3>
+                <div class="story-content" id="summary-text"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('summarize-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const notes = document.getElementById('notes').value;
+            const length = document.getElementById('length').value;
+            const format = document.getElementById('format').value;
+            const btn = e.target.querySelector('button');
+            const loader = document.getElementById('loader');
+            const resultDiv = document.getElementById('result');
+            const summaryText = document.getElementById('summary-text');
+
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            loader.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notes, length, format })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    summaryText.textContent = data.summary;
+                    resultDiv.style.display = 'block';
+                }
+            } catch (err) {
+                alert('Something went wrong. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                loader.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

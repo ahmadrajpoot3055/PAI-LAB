@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StockPulse - Live Market Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: #e0e6f0; min-height: 100vh; }
+  header { background: #111827; border-bottom: 1px solid #1f2937; padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .logo { font-size: 1.5rem; font-weight: 800; background: linear-gradient(90deg, #22c55e, #16a34a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .search-area { display: flex; gap: 8px; }
+  .search-area input { padding: 9px 16px; background: #1f2937; border: 1px solid #374151; border-radius: 8px; color: #e0e6f0; font-size: 0.9rem; width: 200px; outline: none; transition: border 0.3s; }
+  .search-area input:focus { border-color: #22c55e; }
+  .search-area button { padding: 9px 18px; background: #22c55e; border: none; border-radius: 8px; color: #000; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+  .search-area button:hover { background: #16a34a; }
+  .main { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
+  .popular-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 28px; }
+  .pop-btn { background: #111827; border: 1px solid #1f2937; border-radius: 10px; padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .pop-btn:hover { border-color: #22c55e; background: #0d1f12; }
+  .pop-sym { font-weight: 800; font-size: 1rem; color: #22c55e; }
+  .pop-name { font-size: 0.72rem; color: #6b7280; margin-top: 3px; }
+  .quote-card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 26px; margin-bottom: 24px; display: none; }
+  .quote-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+  .q-symbol { font-size: 2rem; font-weight: 800; color: #22c55e; }
+  .q-price { font-size: 3rem; font-weight: 300; }
+  .q-change { font-size: 1.1rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; margin-top: 4px; display: inline-block; }
+  .q-change.up { background: #052e16; color: #22c55e; }
+  .q-change.down { background: #2d0a0a; color: #ef4444; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-box { background: #1f2937; border-radius: 10px; padding: 14px; text-align: center; }
+  .stat-label { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-val { font-size: 1.2rem; font-weight: 700; margin-top: 4px; }
+  .chart-card { background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 24px; display: none; }
+  .chart-title { font-size: 1rem; color: #9ca3af; margin-bottom: 16px; }
+  .error-msg { background: #2d0a0a; border: 1px solid #ef444455; color: #ef4444; padding: 13px 16px; border-radius: 10px; margin-bottom: 20px; display: none; }
+  .loading { text-align: center; padding: 30px; color: #6b7280; display: none; }
+  .section-title { font-size: 1rem; color: #9ca3af; margin-bottom: 14px; font-weight: 600; }
+  @media (max-width: 600px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .q-price { font-size: 2rem; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">📈 StockPulse</div>
+  <div class="search-area">
+    <input type="text" id="symbolInput" placeholder="Symbol (e.g. AAPL)" />
+    <button onclick="getQuote()">Get Quote</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="section-title">Popular Stocks</div>
+  <div class="popular-grid" id="popularGrid">
+    Loading...
+  </div>
+
+  <div class="error-msg" id="errorMsg"></div>
+  <div class="loading" id="loading">⏳ Fetching market data...</div>
+
+  <div class="quote-card" id="quoteCard">
+    <div class="quote-header">
+      <div>
+        <div class="q-symbol" id="qSymbol"></div>
+        <div style="color:#6b7280;font-size:0.82rem;margin-top:2px" id="qDate"></div>
+      </div>
+      <div style="text-align:right">
+        <div class="q-price">$<span id="qPrice"></span></div>
+        <div class="q-change" id="qChange"></div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-label">Open</div><div class="stat-val" id="qOpen">--</div></div>
+      <div class="stat-box"><div class="stat-label">High</div><div class="stat-val" style="color:#22c55e" id="qHigh">--</div></div>
+      <div class="stat-box"><div class="stat-label">Low</div><div class="stat-val" style="color:#ef4444" id="qLow">--</div></div>
+      <div class="stat-box"><div class="stat-label">Prev Close</div><div class="stat-val" id="qPrev">--</div></div>
+    </div>
+    <div style="margin-top:16px;background:#1f2937;border-radius:10px;padding:14px;display:flex;align-items:center;gap:20px">
+      <div><div class="stat-label">Volume</div><div class="stat-val" id="qVol">--</div></div>
+    </div>
+    <div style="margin-top:16px">
+      <button onclick="loadChart()" style="background:#1f2937;border:1px solid #374151;border-radius:8px;padding:9px 20px;color:#e0e6f0;cursor:pointer;font-size:0.85rem;">📊 Load 30-Day Chart</button>
+    </div>
+  </div>
+
+  <div class="chart-card" id="chartCard">
+    <div class="chart-title" id="chartTitle">Price History</div>
+    <canvas id="priceChart" height="100"></canvas>
+  </div>
+</div>
+
+<script>
+  let currentSymbol = '';
+  let priceChart = null;
+
+  document.getElementById('symbolInput').addEventListener('keypress', e => { if (e.key === 'Enter') getQuote(); });
+
+  async function loadPopular() {
+    const res = await fetch('/popular');
+    const data = await res.json();
+    const grid = document.getElementById('popularGrid');
+    grid.innerHTML = data.stocks.map(s => `
+      <div class="pop-btn" onclick="quickLookup('${s.symbol}')">
+        <div class="pop-sym">${s.symbol}</div>
+        <div class="pop-name">${s.name}</div>
+      </div>`).join('');
+  }
+
+  function quickLookup(sym) {
+    document.getElementById('symbolInput').value = sym;
+    getQuote();
+  }
+
+  async function getQuote() {
+    const sym = document.getElementById('symbolInput').value.trim().toUpperCase();
+    if (!sym) return;
+    currentSymbol = sym;
+    showLoading();
+    document.getElementById('quoteCard').style.display = 'none';
+    document.getElementById('chartCard').style.display = 'none';
+
+    try {
+      const res = await fetch('/quote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym }) });
+      const data = await res.json();
+      hideLoading();
+      if (data.error) { showError(data.error); return; }
+      hideError();
+
+      document.getElementById('qSymbol').textContent = data.symbol;
+      document.getElementById('qDate').textContent = 'Latest trading day: ' + data.latest_day;
+      document.getElementById('qPrice').textContent = data.price.toFixed(2);
+
+      const changeEl = document.getElementById('qChange');
+      const sign = data.change >= 0 ? '+' : '';
+      changeEl.textContent = `${sign}${data.change} (${sign}${data.change_pct}%)`;
+      changeEl.className = 'q-change ' + (data.direction === 'up' ? 'up' : 'down');
+
+      document.getElementById('qOpen').textContent = '$' + data.open;
+      document.getElementById('qHigh').textContent = '$' + data.high;
+      document.getElementById('qLow').textContent = '$' + data.low;
+      document.getElementById('qPrev').textContent = '$' + data.prev_close;
+      document.getElementById('qVol').textContent = data.volume.toLocaleString();
+      document.getElementById('quoteCard').style.display = 'block';
+    } catch { hideLoading(); showError('Connection error. Please try again.'); }
+  }
+
+  async function loadChart() {
+    if (!currentSymbol) return;
+    document.getElementById('chartCard').style.display = 'none';
+
+    try {
+      const res = await fetch('/history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: currentSymbol }) });
+      const data = await res.json();
+      if (data.error) { showError(data.error); return; }
+
+      const labels = data.history.map(d => d.date.slice(5));
+      const closes = data.history.map(d => d.close);
+      const color = closes[closes.length - 1] >= closes[0] ? '#22c55e' : '#ef4444';
+
+      document.getElementById('chartTitle').textContent = `${currentSymbol} – 30-Day Closing Price`;
+      document.getElementById('chartCard').style.display = 'block';
+
+      if (priceChart) priceChart.destroy();
+      priceChart = new Chart(document.getElementById('priceChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{ label: 'Close Price ($)', data: closes, borderColor: color, backgroundColor: color + '22', fill: true, tension: 0.3, pointRadius: 3 }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: '#9ca3af' } } },
+          scales: {
+            x: { ticks: { color: '#6b7280' }, grid: { color: '#1f2937' } },
+            y: { ticks: { color: '#6b7280', callback: v => '$' + v }, grid: { color: '#1f2937' } }
+          }
+        }
+      });
+    } catch { showError('Failed to load chart data.'); }
+  }
+
+  function showLoading() { document.getElementById('loading').style.display = 'block'; }
+  function hideLoading() { document.getElementById('loading').style.display = 'none'; }
+  function showError(msg) { const e = document.getElementById('errorMsg'); e.textContent = '⚠️ ' + msg; e.style.display = 'block'; }
+  function hideError() { document.getElementById('errorMsg').style.display = 'none'; }
+
+  loadPopular();
+</script>
+</body>
+</html>

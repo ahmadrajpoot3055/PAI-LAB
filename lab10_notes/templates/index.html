@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoteDistill AI - Smart Notes Summarizer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0fdf4; color: #1a2e1a; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #14532d, #166534); padding: 20px 32px; display: flex; align-items: center; gap: 16px; }
+  .logo-text h1 { font-size: 1.5rem; font-weight: 800; color: #bbf7d0; }
+  .logo-text p { font-size: 0.8rem; color: #86efac; margin-top: 2px; }
+  .main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 800px) { .main { grid-template-columns: 1fr; } }
+  .panel { background: #fff; border: 1px solid #d1fae5; border-radius: 16px; padding: 24px; }
+  .panel h2 { font-size: 1rem; color: #166534; margin-bottom: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  textarea { width: 100%; height: 280px; border: 1.5px solid #d1fae5; border-radius: 10px; padding: 14px; font-size: 0.9rem; font-family: 'Segoe UI', sans-serif; color: #1a2e1a; resize: vertical; outline: none; line-height: 1.6; transition: border 0.3s; }
+  textarea:focus { border-color: #22c55e; }
+  .options-row { display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+  .option-group label { font-size: 0.78rem; color: #166534; font-weight: 600; display: block; margin-bottom: 4px; }
+  .option-group select { padding: 8px 12px; background: #f0fdf4; border: 1.5px solid #d1fae5; border-radius: 8px; color: #1a2e1a; font-size: 0.85rem; outline: none; cursor: pointer; }
+  .summarize-btn { width: 100%; margin-top: 16px; padding: 13px; background: linear-gradient(135deg, #16a34a, #15803d); border: none; border-radius: 10px; color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+  .summarize-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(34,197,94,0.4); }
+  .summarize-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .char-count { font-size: 0.75rem; color: #86efac; margin-top: 5px; }
+  .sample-btn { font-size: 0.78rem; color: #16a34a; background: #dcfce7; border: none; border-radius: 6px; padding: 4px 10px; cursor: pointer; margin-top: 8px; }
+  .sample-btn:hover { background: #bbf7d0; }
+  /* Right panel - results */
+  .results-panel { display: none; }
+  .results-panel.show { display: block; }
+  .loading-panel { text-align: center; padding: 60px 20px; display: none; }
+  .spinner { width: 44px; height: 44px; border: 4px solid #d1fae5; border-top-color: #22c55e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-panel p { color: #166534; font-size: 0.9rem; }
+  .error-panel { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; border-radius: 10px; padding: 14px; margin-bottom: 16px; display: none; }
+  /* Result components */
+  .meta-strip { background: #f0fdf4; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .meta-item { text-align: center; }
+  .meta-item .val { font-size: 1.3rem; font-weight: 800; color: #16a34a; }
+  .meta-item .lbl { font-size: 0.72rem; color: #4b5563; text-transform: uppercase; }
+  .result-title { font-size: 1.2rem; font-weight: 800; color: #14532d; margin-bottom: 4px; }
+  .subject-badge { display: inline-block; background: #dcfce7; color: #166534; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-bottom: 16px; }
+  .difficulty-badge { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-left: 8px; }
+  .diff-BEGINNER { background: #dcfce7; color: #166534; }
+  .diff-INTERMEDIATE { background: #fef9c3; color: #a16207; }
+  .diff-ADVANCED { background: #fee2e2; color: #b91c1c; }
+  .section-block { margin-bottom: 18px; }
+  .section-block h3 { font-size: 0.85rem; color: #166534; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; font-weight: 700; padding-bottom: 6px; border-bottom: 1px solid #d1fae5; }
+  .kp-list { list-style: none; }
+  .kp-list li { padding: 7px 0; border-bottom: 1px solid #f0fdf4; font-size: 0.88rem; color: #374151; display: flex; gap: 8px; line-height: 1.5; }
+  .kp-list li::before { content: "•"; color: #22c55e; font-size: 1.2rem; flex-shrink: 0; line-height: 1.2; }
+  .summary-p { font-size: 0.9rem; color: #374151; line-height: 1.7; background: #f0fdf4; border-radius: 8px; padding: 14px; border-left: 3px solid #22c55e; }
+  .flashcard { background: #f0fdf4; border: 1px solid #d1fae5; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; }
+  .flashcard .q { font-size: 0.85rem; font-weight: 700; color: #14532d; margin-bottom: 4px; }
+  .flashcard .a { font-size: 0.83rem; color: #374151; }
+  .term-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f0fdf4; font-size: 0.85rem; }
+  .term-row .term { font-weight: 700; color: #16a34a; min-width: 120px; }
+  .term-row .def { color: #374151; }
+  .action-item { display: flex; gap: 8px; padding: 7px 0; font-size: 0.87rem; color: #374151; border-bottom: 1px solid #f0fdf4; }
+  .action-item::before { content: "☐"; color: #22c55e; }
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab { padding: 7px 14px; border: 1.5px solid #d1fae5; background: #f0fdf4; border-radius: 8px; font-size: 0.8rem; font-weight: 600; color: #166534; cursor: pointer; transition: all 0.2s; }
+  .tab.active { background: #16a34a; border-color: #16a34a; color: #fff; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .study-tip { background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 0.85rem; color: #713f12; }
+  .study-tip::before { content: "💡 "; }
+</style>
+</head>
+<body>
+<header>
+  <div style="font-size:2rem">📝</div>
+  <div class="logo-text">
+    <h1>NoteDistill AI</h1>
+    <p>Transform lengthy notes into clear, meaningful key points</p>
+  </div>
+</header>
+
+<div class="main">
+  <!-- Left: Input -->
+  <div class="panel">
+    <h2>📥 Your Notes</h2>
+    <textarea id="notesText" placeholder="Paste your lecture notes, study material, meeting notes, or any text here..."></textarea>
+    <div class="char-count" id="charCount">0 characters</div>
+    <button class="sample-btn" onclick="loadSample()">📄 Load Sample Notes</button>
+
+    <div class="options-row">
+      <div class="option-group">
+        <label>Output Style</label>
+        <select id="styleSelect">
+          <option value="bullet">Bullet Points</option>
+          <option value="executive">Executive Summary</option>
+          <option value="flashcards">Flashcards</option>
+          <option value="mindmap">Mind Map Outline</option>
+        </select>
+      </div>
+      <div class="option-group">
+        <label>Detail Level</label>
+        <select id="detailSelect">
+          <option value="brief">Brief (3-5 pts)</option>
+          <option value="medium" selected>Medium (6-10 pts)</option>
+          <option value="detailed">Detailed</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="summarize-btn" id="summarizeBtn" onclick="summarizeNotes()">✨ Summarize with AI</button>
+  </div>
+
+  <!-- Right: Results -->
+  <div class="panel" id="rightPanel">
+    <div class="loading-panel" id="loadingPanel">
+      <div class="spinner"></div>
+      <p>🤖 AI is distilling your notes...</p>
+      <p style="margin-top:8px;font-size:0.78rem;color:#6b7280">Usually takes 10–15 seconds</p>
+    </div>
+
+    <div class="error-panel" id="errorPanel"></div>
+
+    <div id="resultsContent" style="display:none">
+      <div class="result-title" id="resTitle"></div>
+      <div>
+        <span class="subject-badge" id="resSubject"></span>
+        <span class="difficulty-badge" id="resDiff"></span>
+      </div>
+      <div class="meta-strip" id="metaStrip"></div>
+
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('keypoints', this)">Key Points</div>
+        <div class="tab" onclick="switchTab('summary', this)">Summary</div>
+        <div class="tab" onclick="switchTab('flashcards', this)">Flashcards</div>
+        <div class="tab" onclick="switchTab('terms', this)">Terms</div>
+        <div class="tab" onclick="switchTab('actions', this)">Actions</div>
+        <div class="tab" onclick="switchTab('tips', this)">Study Tips</div>
+      </div>
+
+      <div class="tab-content active" id="tab-keypoints">
+        <div class="section-block">
+          <h3>🎯 Key Points</h3>
+          <ul class="kp-list" id="keyPointsList"></ul>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-summary">
+        <div class="section-block">
+          <h3>📋 Summary</h3>
+          <div class="summary-p" id="summaryPara"></div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-flashcards">
+        <div class="section-block">
+          <h3>🃏 Flashcards</h3>
+          <div id="flashcardsList"></div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-terms">
+        <div class="section-block">
+          <h3>📚 Important Terms</h3>
+          <div id="termsList"></div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-actions">
+        <div class="section-block">
+          <h3>☑️ Action Items</h3>
+          <div id="actionsList"></div>
+        </div>
+      </div>
+      <div class="tab-content" id="tab-tips">
+        <div class="section-block">
+          <h3>💡 Study Tips</h3>
+          <div id="tipsList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="placeholderMsg" style="text-align:center;padding:60px 20px;color:#86efac">
+      <div style="font-size:3rem;margin-bottom:16px">✨</div>
+      <p style="font-size:1rem;font-weight:600;color:#166534">Your summary will appear here</p>
+      <p style="font-size:0.85rem;margin-top:8px;color:#4b5563">Paste notes on the left and click Summarize</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const SAMPLE = `Introduction to Machine Learning - Lecture Notes
+
+Machine Learning (ML) is a subset of Artificial Intelligence that enables computers to learn from data without being explicitly programmed. It was coined by Arthur Samuel in 1959.
+
+Types of Machine Learning:
+1. Supervised Learning - Algorithm learns from labeled training data. Examples: classification (spam detection), regression (house price prediction). Common algorithms: Linear Regression, Decision Trees, SVM, Neural Networks.
+
+2. Unsupervised Learning - No labeled data. Algorithm finds hidden patterns. Examples: clustering (customer segmentation), dimensionality reduction. Common algorithms: K-Means, PCA, Autoencoders.
+
+3. Reinforcement Learning - Agent learns by interacting with environment and receiving rewards/penalties. Used in game AI, robotics. Key concepts: agent, environment, state, action, reward, policy.
+
+Key ML Concepts:
+- Training set: data used to train the model
+- Test set: data used to evaluate model performance
+- Validation set: used for hyperparameter tuning
+- Overfitting: model performs well on training but poorly on new data (memorizes instead of generalizes)
+- Underfitting: model is too simple and performs poorly on both training and test data
+- Bias-Variance Tradeoff: finding balance between underfitting and overfitting
+- Feature Engineering: transforming raw data into useful features for the model
+
+Evaluation Metrics:
+- Accuracy: correct predictions / total predictions
+- Precision: true positives / (true positives + false positives)
+- Recall: true positives / (true positives + false negatives)
+- F1 Score: harmonic mean of precision and recall
+- RMSE: root mean squared error (for regression)
+
+TODO: Review Chapter 4 on Neural Networks before the exam next Friday.
+Assignment due: Implement a simple classifier using sklearn by Thursday.`;
+
+document.getElementById('notesText').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length + ' characters';
+});
+
+function loadSample() {
+  document.getElementById('notesText').value = SAMPLE;
+  document.getElementById('charCount').textContent = SAMPLE.length + ' characters';
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+async function summarizeNotes() {
+  const text = document.getElementById('notesText').value.trim();
+  if (!text || text.length < 50) { showError('Please paste notes with at least 50 characters.'); return; }
+
+  document.getElementById('placeholderMsg').style.display = 'none';
+  document.getElementById('resultsContent').style.display = 'none';
+  document.getElementById('errorPanel').style.display = 'none';
+  document.getElementById('loadingPanel').style.display = 'block';
+  document.getElementById('summarizeBtn').disabled = true;
+
+  const style = document.getElementById('styleSelect').value;
+  const detail = document.getElementById('detailSelect').value;
+
+  try {
+    const res = await fetch('/summarize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, style, detail })
+    });
+    const data = await res.json();
+    document.getElementById('loadingPanel').style.display = 'none';
+    document.getElementById('summarizeBtn').disabled = false;
+
+    if (data.error) { showError(data.error); return; }
+    renderResults(data);
+  } catch {
+    document.getElementById('loadingPanel').style.display = 'none';
+    document.getElementById('summarizeBtn').disabled = false;
+    showError('Connection error. Please try again.');
+  }
+}
+
+function renderResults(d) {
+  document.getElementById('resTitle').textContent = d.title || 'Summary';
+  document.getElementById('resSubject').textContent = '📖 ' + (d.subject_area || 'General');
+  const diffEl = document.getElementById('resDiff');
+  diffEl.textContent = d.difficulty_level;
+  diffEl.className = 'difficulty-badge diff-' + (d.difficulty_level || 'INTERMEDIATE');
+
+  document.getElementById('metaStrip').innerHTML = `
+    <div class="meta-item"><div class="val">${d.word_count_original || '—'}</div><div class="lbl">Original Words</div></div>
+    <div class="meta-item"><div class="val">${d.word_count_summary || '—'}</div><div class="lbl">Summary Words</div></div>
+    <div class="meta-item"><div class="val">${d.compression_ratio || '—'}</div><div class="lbl">Compression</div></div>
+    <div class="meta-item"><div class="val">${(d.key_points || []).length}</div><div class="lbl">Key Points</div></div>`;
+
+  document.getElementById('keyPointsList').innerHTML = (d.key_points || []).map(p => `<li>${p}</li>`).join('') || '<li>No key points found.</li>';
+  document.getElementById('summaryPara').textContent = d.summary_paragraph || '';
+  document.getElementById('flashcardsList').innerHTML = (d.flashcards || []).map(fc => `
+    <div class="flashcard"><div class="q">Q: ${fc.question}</div><div class="a">A: ${fc.answer}</div></div>`).join('') || '<p style="color:#6b7280;font-size:0.85rem">No flashcards generated.</p>';
+  document.getElementById('termsList').innerHTML = (d.important_terms || []).map(t => `
+    <div class="term-row"><div class="term">${t.term}</div><div class="def">${t.definition}</div></div>`).join('') || '<p style="color:#6b7280;font-size:0.85rem">No terms found.</p>';
+  document.getElementById('actionsList').innerHTML = (d.action_items || []).map(a => `<div class="action-item">${a}</div>`).join('') || '<p style="color:#6b7280;font-size:0.85rem">No action items found.</p>';
+  document.getElementById('tipsList').innerHTML = (d.study_tips || []).map(t => `<div class="study-tip">${t}</div>`).join('') || '';
+
+  document.getElementById('resultsContent').style.display = 'block';
+}
+
+function showError(msg) {
+  const e = document.getElementById('errorPanel');
+  e.textContent = '⚠️ ' + msg; e.style.display = 'block';
+  document.getElementById('placeholderMsg').style.display = 'none';
+}
+</script>
+</body>
+</html>
